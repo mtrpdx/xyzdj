@@ -17,6 +17,9 @@
 /* Simple service includes */
 #include "syslog.h"
 
+/* oss-services includes */
+#include "umm_malloc.h"
+
 /* Project includes */
 #include "adi_initialize.h"
 #include "xyzdj_linux_Core0.h"

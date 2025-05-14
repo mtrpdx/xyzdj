@@ -5,7 +5,6 @@
 #include "adi_initialize.h"
 #include "xyzdj_linux_Core1.h"
 
-
 /* Kernel includes. */
 #include "FreeRTOSConfig.h"
 #include "FreeRTOS.h"
