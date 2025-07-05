@@ -91,8 +91,32 @@ KEY xyz_estimate_key(char *fname) {
         syslog_printf("Failed to open %s\n", wf->fname);
     } else {
 
-    // FFT
+        // FFT
+        // Define a buffer to hold the audio samples
+        #define BUFFER_SIZE 4096
+        #define N_FFT 4096
 
+        /* int16_t audioBuffer[BUFFER_SIZE]; */
+        #pragma align 32
+        float         audioBuffer[BUFFER_SIZE];
+        #pragma align 32
+        complex_float output[BUFFER_SIZE];
+
+        size_t samplesRead;
+        int twiddle_stride = 1;
+
+        do {
+            samplesRead = readWave(&myWaveFile, audioBuffer, BUFFER_SIZE);
+            if (samplesRead > 0) {
+                // Process the 'samplesRead' samples in 'audioBuffer'
+                complex_float *result = accel_rfft_large(audioBuffer, output,
+                                                         accel_twiddles_4096,
+                                                         twiddle_stride, 1.0, N_FFT);
+                if (!result)
+                    syslog_printf("Unable to take rfft.\n");
+            }
+        } while (samplesRead > 0);
+     }
 
     closeWave(wf);
     free(wf);
