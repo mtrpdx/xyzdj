@@ -77,9 +77,8 @@ XYZ_TrackLength *xyz_get_length(char *fname) {
             syslog_printf("Track length: %d:%02d:%02d.%03d\n", tl->hours, tl->mins,
                               tl->secs, tl->ms);
         }
+        closeWave(wf);
     }
-
-    closeWave(wf);
     free(wf);
 
     return tl;
@@ -90,20 +89,26 @@ XYZ_Key *xyz_estimate_key(char *fname) {
     XYZ_Key *key = NULL;
     WAV_FILE *wf = NULL;
 
+    key = (XYZ_Key *)malloc(sizeof(XYZ_Key));
+    if (key == NULL) {
+        syslog_printf("Failed to allocate memory for XYZ_Key struct\n");
+        return key;
+    }
+    memset(key, 0, sizeof(XYZ_Key));
     wf = (WAV_FILE *)malloc(sizeof(WAV_FILE));
     if (wf == NULL) {
         syslog_printf("Failed to allocate memory for WAV_FILE struct\n");
-
-        return key;
+        free(key);
+        return NULL;
     }
     memset(wf, 0, sizeof(WAV_FILE));
 
-    key = (XYZ_Key *)malloc(sizeof(XYZ_Key));
     key->KEY_UNKNOWN = true;
 
     wf->fname = (char *)fname;
     wf->isSrc = true;
 
+/*
     int ok;
     ok = openWave(wf);
     if (!ok) {
@@ -115,11 +120,11 @@ XYZ_Key *xyz_estimate_key(char *fname) {
         #define BUFFER_SIZE 4096
         #define N_FFT 4096
 
-        /* int16_t audioBuffer[BUFFER_SIZE]; */
+        // int16_t audioBuffer[BUFFER_SIZE];
         #pragma align 32
-        float         audioBuffer[BUFFER_SIZE];
+        static float         audioBuffer[BUFFER_SIZE];
         #pragma align 32
-        complex_float output[BUFFER_SIZE];
+        static complex_float output[BUFFER_SIZE];
 
         size_t samplesRead;
         int twiddle_stride = 1;
@@ -135,11 +140,11 @@ XYZ_Key *xyz_estimate_key(char *fname) {
                     syslog_printf("Error while taking rfft.\n");
             }
         } while (samplesRead > 0);
+        closeWave(wf);
      }
-
-    closeWave(wf);
+*/
     free(wf);
-    if (!key->KEY_UNKNOWN) {
+    if (!(key->KEY_UNKNOWN)) {
             xyz_update_key_string(key);
     }
 
@@ -147,37 +152,49 @@ XYZ_Key *xyz_estimate_key(char *fname) {
 }
 
 void xyz_update_key_string(XYZ_Key *key) {
-    char key_string[32];
+    char key_string[32] = "";
 
     switch (key->tonic) {
         case 0:
             strcat(key_string, "C ");
+            break;
         case 2:
             strcat(key_string, "D ");
+            break;
         case 4:
             strcat(key_string, "E ");
+            break;
         case 5:
             strcat(key_string, "F ");
+            break;
         case 7:
             strcat(key_string, "G ");
+            break;
         case 9:
             strcat(key_string, "A ");
+            break;
         case 11:
             strcat(key_string, "B ");
+            break;
     }
     switch (key->accidental) {
         case 1:
             strcat(key_string, "# ");
+            break;
         case 0:
             strcat(key_string, " ");
+            break;
         case -1:
             strcat(key_string, "b");
+            break;
     }
     switch (key->scale) {
         case 1:
             strcat(key_string, "Maj");
+            break;
         case 2:
             strcat(key_string, "Min");
+            break;
     }
 
     strcpy(key->key_string, key_string);

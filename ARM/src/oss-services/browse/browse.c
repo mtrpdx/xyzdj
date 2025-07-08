@@ -275,6 +275,27 @@ void browseFreeRow(brow *row) {
     BROWSE_FREE(row->hl);
 }
 
+/* Free all rows of text and update variables accordingly. */
+void browseFreeRows(void) {
+    int j;
+    if (B.row) {
+        for (j = 0; j < B.numrows; j++) {
+            if (B.row[j].chars) {
+                BROWSE_FREE(B.row[j].chars);
+            }
+            if (B.row[j].render) {
+                BROWSE_FREE(B.row[j].render);
+            }
+            if (B.row[j].hl) {
+                BROWSE_FREE(B.row[j].hl);
+            }
+        }
+        BROWSE_FREE(B.row);
+    }
+    B.row = NULL;
+    B.numrows = 0;
+}
+
 /* Turn the browser rows into a single heap-allocated string.
  * Returns the pointer to the heap-allocated string and populate the
  * integer pointed by 'buflen' with the size of the string, excluding
@@ -303,22 +324,7 @@ char *browseRowsToString(int *buflen) {
 }
 
 void browseFreeMemory() {
-    int j;
-    if (B.row) {
-        for (j = 0; j < B.numrows; j++) {
-            if (B.row[j].chars) {
-                BROWSE_FREE(B.row[j].chars);
-            }
-            if (B.row[j].render) {
-                BROWSE_FREE(B.row[j].render);
-            }
-            if (B.row[j].hl) {
-                BROWSE_FREE(B.row[j].hl);
-            }
-        }
-        BROWSE_FREE(B.row);
-    }
-
+    browseFreeRows();
     if (B.dirname) {
         BROWSE_FREE(B.dirname);
     }
@@ -557,10 +563,13 @@ static void browseShowFileInfo(brow *row) {
     B.rowoff = 0;
     B.coloff = 0;
 
+    char full_path[MAX_PATH_LENGTH];
+    snprintf(full_path, sizeof(full_path), "%s%s", B.dirname, row->fentry.name);
+
     // Call function to get file length
     XYZ_TrackLength *tl = xyz_get_length(row->fentry.name);
     // Call function to get key
-    /* XYZ_Key *key = xyz_estimate_key(row->fentry.name); */
+    XYZ_Key *key = xyz_estimate_key(row->fentry.name);
     // Call function to get BPM
     // bpm = xyz_get_bpm();
 
@@ -570,16 +579,16 @@ static void browseShowFileInfo(brow *row) {
     } else {
         snprintf(row1, sizeof(row1), "  Length: Unknown");
     }
-    /* if (key) {
-        if (key->KEY_UNKNOWN) {
+    if (key) {
+        if (key->KEY_UNKNOWN == true) {
             snprintf(row2, sizeof(row2), "  Key: Unknown");
         } else {
             snprintf(row2, sizeof(row2), "  Key: %s", key->key_string);
         }
         free(key);
-    } */
-
-    snprintf(row2, sizeof(row2), "  Key: Unknown");
+    } else {
+        snprintf(row2, sizeof(row2), "  Key: Unknown");
+    }
 
     snprintf(row3, sizeof(row3), "  BPM: 128");
     browseInsertRow(B.numrows, _T("../"), 3, FT_DIR);
@@ -642,6 +651,14 @@ static void browseEnterDir(brow *row) {
 int browseProcessKeypress(void) {
 
     int c = browseReadKey();
+
+    if (B.info_screen_active) {
+        B.info_screen_active = 0;
+        browseFreeRows();
+        scanDir(B.dirname);
+        return 1;
+    }
+
     switch(c) {
     case ENTER:         /* Enter */
         if (B.numrows > 0) {
@@ -778,25 +795,6 @@ static int scanDir(const char* path) {
 
     return 0;
 }
-
-/* static char * get_file_extension(const char *fname) */
-/* { */
-/*     size_t end = strlen(fname); */
-/*     // TODO: Currently only works with three letter extensions. */
-/*     // Maybe a better method is to search for last period in filename? */
-/*     char *curr_ext = (char *)BROWSE_MALLOC(4 * sizeof(char)); */
-
-/*     if (curr_ext == NULL) { */
-/*         printf("Memory allocation failed!\n"); */
-/*     } */
-
-/*     curr_ext[0] = (fname)[end-3]; */
-/*     curr_ext[1] = (fname)[end-2]; */
-/*     curr_ext[2] = (fname)[end-1]; */
-/*     curr_ext[3] = '\0'; */
-
-/*     return curr_ext; */
-/* } */
 
 int browse_main(int argc, char **argv, void *usr, const char *crtname) {
     int ok;
