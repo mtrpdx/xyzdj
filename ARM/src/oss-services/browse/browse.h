@@ -168,6 +168,7 @@ struct browseContext {
     char statusmsg[80];
     time_t statusmsg_time;
     void *usr;
+    int info_screen_active; /* Added to track file info screen state */
 };
 
 

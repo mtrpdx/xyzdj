@@ -29,10 +29,12 @@ typedef enum {
     XYZ_DOUBLE_FLAT = -2
 } XYZ_ACC;
 
-typedef int XYZ_Scale[7];
+typedef enum {
+    XYZ_MAJ = 1,
+    XYZ_MIN = 2,
+} XYZ_SCALE;
 
-XYZ_Scale XYZ_Maj = {0, 2, 4, 5, 7, 9, 11};
-XYZ_Scale XYZ_Min = {0, 2, 3, 5, 7, 8, 10};
+typedef int XYZ_Scale[8];
 
 /* # A dictionary converting the tonic name to the associated major key, e.g. C Dorian uses the notes of the Bb major scale, hence MAJOR_DICT['dor']['C'] = 'B♭' */
 /* MAJOR_DICT = { */
@@ -63,10 +65,12 @@ typedef struct {
 } XYZ_Note;
 
 typedef struct {
+    bool KEY_UNKNOWN;
     XYZ_TONIC tonic;
     XYZ_ACC accidental;
-    XYZ_Scale scale;
+    XYZ_SCALE scale;
     XYZ_MODE mode;
+    char key_string[32];
 } XYZ_Key;
 
 /* typedef enum { */
@@ -102,23 +106,39 @@ void XYZ_key_to_degrees(XYZ_Key key);
 /*!****************************************************************
  * @brief Queries the track length for a specified file.
  *
+ * This function returns a pointer to a dynamically allocated
+ * XYZ_TrackLength struct. The caller is responsible for freeing
+ * the memory allocated for the struct using free().
+ *
  * @param [in]  fname      Pointer to a filename
  *
- * @return TrackLength, where {-1, -1, -1, -1} means an error occurred,
- * position 1 is hours, position 2 is minutes, position 3 is seconds,
- * pos 4 is milliseconds.
+ * @return A pointer to an XYZ_TrackLength struct on success,
+ *         or NULL on failure.
+ *
+ * @note Example usage:
+ *
+ *   XYZ_TrackLength *length = xyz_get_length("my_song.wav");
+ *   if (length) {
+ *       printf("Track length: %d:%02d:%02d.%03d\n",
+ *              length->hours, length->mins, length->secs, length->ms);
+ *       free(length);
+ *   } else {
+ *       printf("Could not get track length.\n");
+ *   }
  ******************************************************************/
-XYZ_TrackLength xyz_get_length(char *fname);
+XYZ_TrackLength *xyz_get_length(char *fname);
 
 /*!****************************************************************
  * @brief Estimates the key for a specified file.
  *
  * @param [in]  fname      Pointer to a filename
  *
- * @return KEY, where -1 means an error occurred, or one of 12 musical
- * keys from the traditional western scale.
+ * @return A pointer to an XYZ_Key struct on success, or NULL on failure.
+ * The caller is responsible for freeing the memory.
  ******************************************************************/
-XYZ_Key xyz_estimate_key(char *fname);
+XYZ_Key *xyz_estimate_key(char *fname);
+
+void xyz_update_key_string(XYZ_Key *key);
 
 /*!****************************************************************
  * @brief Estimates the beats per minute for a specified file.

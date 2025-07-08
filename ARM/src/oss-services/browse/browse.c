@@ -261,6 +261,8 @@ void browseInsertRow(int at, const char *s, size_t len, FileType type) {
     if (type != FT_INFO) {
         strncpy(B.row[at].fentry.name, s, MAX_FILENAME_LENGTH);
         B.row[at].fentry.name[MAX_FILENAME_LENGTH - 1] = '\0'; // Ensure null termination
+    } else {
+        B.row[at].fentry.name[0] = '\0';
     }
     browseUpdateRow(B.row+at);
     B.numrows++;
@@ -461,6 +463,7 @@ void browseSetStatusMessage(const char *fmt, ...) {
 
 /* Handle cursor position change because arrow keys were pressed. */
 void browseMoveCursor(int key) {
+    if (B.info_screen_active) return;
     int filerow = B.rowoff+B.cy;
     int filecol = B.coloff+B.cx;
     int rowlen;
@@ -541,6 +544,7 @@ void browseMoveCursor(int key) {
 
 
 static void browseShowFileInfo(brow *row) {
+    B.info_screen_active = 1;
     // TODO: Update to show actual music file info
     char row1[MAX_PATH_LENGTH];
     char row2[MAX_PATH_LENGTH];
@@ -553,17 +557,30 @@ static void browseShowFileInfo(brow *row) {
     B.rowoff = 0;
     B.coloff = 0;
 
-    TrackLength tl;
-    /* char *fname = row->fentry.name; */
     // Call function to get file length
-    tl = xyz_get_length(row->fentry.name);
+    XYZ_TrackLength *tl = xyz_get_length(row->fentry.name);
     // Call function to get key
-    // key = xyz_estimate_key();
+    /* XYZ_Key *key = xyz_estimate_key(row->fentry.name); */
     // Call function to get BPM
     // bpm = xyz_get_bpm();
 
-    snprintf(row1, sizeof(row1), "  Length: %d:%d", tl.mins, tl.secs);
-    snprintf(row2, sizeof(row2), "  Key: C# Minor");
+    if (tl) {
+        snprintf(row1, sizeof(row1), "  Length: %d:%d", tl->mins, tl->secs);
+        free(tl);
+    } else {
+        snprintf(row1, sizeof(row1), "  Length: Unknown");
+    }
+    /* if (key) {
+        if (key->KEY_UNKNOWN) {
+            snprintf(row2, sizeof(row2), "  Key: Unknown");
+        } else {
+            snprintf(row2, sizeof(row2), "  Key: %s", key->key_string);
+        }
+        free(key);
+    } */
+
+    snprintf(row2, sizeof(row2), "  Key: Unknown");
+
     snprintf(row3, sizeof(row3), "  BPM: 128");
     browseInsertRow(B.numrows, _T("../"), 3, FT_DIR);
     browseInsertRow(B.numrows, "", 0, FT_INFO);
@@ -572,6 +589,7 @@ static void browseShowFileInfo(brow *row) {
     browseInsertRow(B.numrows, row1, strlen(row1), FT_INFO);
     browseInsertRow(B.numrows, row2, strlen(row2), FT_INFO);
     browseInsertRow(B.numrows, row3, strlen(row3), FT_INFO);
+
 }
 
 static void browseEnterDir(brow *row) {
@@ -611,6 +629,7 @@ static void browseEnterDir(brow *row) {
     B.cy = 0;
     B.rowoff = 0;
     B.coloff = 0;
+    B.info_screen_active = 0;
     // Update current directory
     B.dirname = BROWSE_MALLOC(strlen(new_path) + 1);
     strcpy(B.dirname, new_path);
@@ -629,7 +648,7 @@ int browseProcessKeypress(void) {
             brow *selected_row = &B.row[B.rowoff + B.cy];
             if (selected_row->fentry.type == FT_DIR) {
                 browseEnterDir(selected_row);
-            } else {
+            } else if (selected_row->fentry.type == FT_FILE) {
                 browseShowFileInfo(selected_row);
             }
         }
@@ -678,6 +697,7 @@ int initBrowse(void) {
     B.coloff = 0;
     B.numrows = 0;
     B.row = NULL;
+    B.info_screen_active = 0;
     B.dirname = BROWSE_MALLOC(MAX_PATH_LENGTH);
     if (B.dirname == NULL) return -1;
     strcpy(B.dirname, "/"); // Default to root directory

@@ -8,7 +8,10 @@
 #include "wav_file.h"
 #include "xyz_utils.h"
 
-TrackLength xyz_get_length(char *fname) {
+XYZ_Scale XYZ_Maj = {0, 2, 4, 5, 7, 9, 11};
+XYZ_Scale XYZ_Min = {0, 2, 3, 5, 7, 8, 10};
+
+XYZ_TrackLength *xyz_get_length(char *fname) {
    /* 1. Open the WAV file in binary read mode (fopen(filename, "rb")).
    2. Read the header. The WAV header is typically 44 bytes. You would read this into a custom struct.
    3. Extract key fields:
@@ -23,24 +26,33 @@ TrackLength xyz_get_length(char *fname) {
 
     // TODO: Add check to see if it is actually a wav file
 
-    TrackLength tl = {-1, -1, -1, -1};
-
+    XYZ_TrackLength *tl = NULL;
     WAV_FILE *wf = NULL;
 
-    /* WAV_FILE *wf = malloc(sizeof(WAV_FILE)); // Allocate memory */
+    tl = (XYZ_TrackLength *)malloc(sizeof(XYZ_TrackLength));
+    if (tl == NULL) {
+        syslog_printf("Failed to allocate memory for XYZ_TrackLength struct\n");
+        return NULL;
+    }
+    memset(tl, 0, sizeof(XYZ_TrackLength));
+
     wf = (WAV_FILE *)malloc(sizeof(WAV_FILE));
     if (wf == NULL) {
         syslog_printf("Failed to allocate memory for WAV_FILE struct\n");
-        return tl;
+        free(tl);
+        return NULL;
     }
     memset(wf, 0, sizeof(WAV_FILE));
 
     wf->fname = (char *)fname;
     wf->isSrc = true;
 
+    int ok;
     ok = openWave(wf);
     if (!ok) {
         syslog_printf("Failed to open %s\n", wf->fname);
+        free(tl);
+        tl = NULL;
     } else {
         syslog_printf("Opened %s successfully.\n", wf->fname);
         syslog_printf("Sample rate: %u\n", wf->sampleRate);
@@ -55,37 +67,44 @@ TrackLength xyz_get_length(char *fname) {
             uint64_t total_milliseconds =
                 ((uint64_t)wf->waveInfo.dataSize * 1000) /
                 wf->waveInfo.byteRate;
-            tl.hours = total_milliseconds / (1000 * 60 * 60);
+            tl->hours = total_milliseconds / (1000 * 60 * 60);
             total_milliseconds %= (1000 * 60 * 60);
-            tl.mins = total_milliseconds / (1000 * 60);
+            tl->mins = total_milliseconds / (1000 * 60);
             total_milliseconds %= (1000 * 60);
-            tl.secs = total_milliseconds / 1000;
-            tl.ms = total_milliseconds % 1000;
+            tl->secs = total_milliseconds / 1000;
+            tl->ms = total_milliseconds % 1000;
 
-            syslog_printf("Track length: %lu:%lu:%lu\n", tl.mins, tl.secs,
-                              tl.ms);
+            syslog_printf("Track length: %d:%02d:%02d.%03d\n", tl->hours, tl->mins,
+                              tl->secs, tl->ms);
         }
     }
+
     closeWave(wf);
     free(wf);
 
     return tl;
 }
 
-KEY xyz_estimate_key(char *fname) {
+XYZ_Key *xyz_estimate_key(char *fname) {
 
+    XYZ_Key *key = NULL;
     WAV_FILE *wf = NULL;
 
     wf = (WAV_FILE *)malloc(sizeof(WAV_FILE));
     if (wf == NULL) {
         syslog_printf("Failed to allocate memory for WAV_FILE struct\n");
-        return tl;
+
+        return key;
     }
     memset(wf, 0, sizeof(WAV_FILE));
+
+    key = (XYZ_Key *)malloc(sizeof(XYZ_Key));
+    key->KEY_UNKNOWN = true;
 
     wf->fname = (char *)fname;
     wf->isSrc = true;
 
+    int ok;
     ok = openWave(wf);
     if (!ok) {
         syslog_printf("Failed to open %s\n", wf->fname);
@@ -104,28 +123,68 @@ KEY xyz_estimate_key(char *fname) {
 
         size_t samplesRead;
         int twiddle_stride = 1;
-
+        syslog_printf("Taking rfft with %d samples.\n", N_FFT);
         do {
-            samplesRead = readWave(&myWaveFile, audioBuffer, BUFFER_SIZE);
+            samplesRead = readWave(wf, audioBuffer, BUFFER_SIZE);
             if (samplesRead > 0) {
                 // Process the 'samplesRead' samples in 'audioBuffer'
                 complex_float *result = accel_rfft_large(audioBuffer, output,
                                                          accel_twiddles_4096,
                                                          twiddle_stride, 1.0, N_FFT);
                 if (!result)
-                    syslog_printf("Unable to take rfft.\n");
+                    syslog_printf("Error while taking rfft.\n");
             }
         } while (samplesRead > 0);
      }
 
     closeWave(wf);
     free(wf);
+    if (!key->KEY_UNKNOWN) {
+            xyz_update_key_string(key);
+    }
 
-    return KEY_UNKNOWN;
+    return key;
 }
 
-BPM xyz_estimate_bpm(char *fname) {
-    BPM bpm = {-1, -1};
+void xyz_update_key_string(XYZ_Key *key) {
+    char key_string[32];
+
+    switch (key->tonic) {
+        case 0:
+            strcat(key_string, "C ");
+        case 2:
+            strcat(key_string, "D ");
+        case 4:
+            strcat(key_string, "E ");
+        case 5:
+            strcat(key_string, "F ");
+        case 7:
+            strcat(key_string, "G ");
+        case 9:
+            strcat(key_string, "A ");
+        case 11:
+            strcat(key_string, "B ");
+    }
+    switch (key->accidental) {
+        case 1:
+            strcat(key_string, "# ");
+        case 0:
+            strcat(key_string, " ");
+        case -1:
+            strcat(key_string, "b");
+    }
+    switch (key->scale) {
+        case 1:
+            strcat(key_string, "Maj");
+        case 2:
+            strcat(key_string, "Min");
+    }
+
+    strcpy(key->key_string, key_string);
+}
+
+XYZ_BPM xyz_estimate_bpm(char *fname) {
+    XYZ_BPM bpm = {-1, -1};
 
     return bpm;
 }
