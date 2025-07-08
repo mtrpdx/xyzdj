@@ -13,7 +13,7 @@ SHARC_AS := easm21k
 LD := elfloader
 
 # PROJECT settings
-PROJECT := SAM-Audio-Starter
+PROJECT := xyzdj
 
 # Create this file for configuration specific settings
 -include $(CONFIG)/makefile.include

@@ -17,10 +17,10 @@
 /*! @cond */
 
 #define SHELL_MAX_ARGS          10
-#define SHELL_WELCOMEMSG         "SAM Audio Starter with Networking\n" \
-                                 "Version: %s (%s %s)\n" 
+#define SHELL_WELCOMEMSG         "xyzdj with networking\n" \
+                                 "version: %s (%s %s)\n"
 #define SHELL_PROMPT            "# "
-#define SHELL_ERRMSG            "Invalid command, type 'help' for help\n"
+#define SHELL_ERRMSG            "invalid command, type 'help' for help\n"
 #define SHELL_MAX_LINE_LEN      79
 #define SHELL_COLUMNS           80
 #define SHELL_LINES             24
