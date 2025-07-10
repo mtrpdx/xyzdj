@@ -70,6 +70,7 @@ ARM_SRC_DIRS += \
 	ARM/src/simple-services/vban-stream \
 	ARM/src/simple-services/wav-file \
 	ARM/src/simple-services/telnet \
+	ARM/src/adi-drivers/fft \
 	ARM/src/oss-services/lwip/core \
 	ARM/src/oss-services/lwip/core/ipv4 \
 	ARM/src/oss-services/lwip/netif \
@@ -178,6 +179,8 @@ SHARC0_SRC_DIRS += \
 	ALL/src/sae \
 	SHARC0 \
 	SHARC0/src \
+	SHARC0/src/adi-drivers \
+	SHARC0/src/adi-drivers/fft \
 	SHARC0/startup_ldf
 
 SHARC0_DST := SHARC0
@@ -247,6 +250,8 @@ SHARC1_SRC_DIRS += \
 	ALL/src/sae \
 	SHARC1 \
 	SHARC1/src \
+	SHARC1/src/adi-drivers \
+	SHARC1/src/adi-drivers/fft \
 	SHARC1/startup_ldf
 
 SHARC1_DST := SHARC1

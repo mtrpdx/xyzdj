@@ -2,11 +2,19 @@
 #include <string.h>
 #include <stdio.h>
 
-#include <adi_fft_wrapper.h>
-
+#include "adi_fft_wrapper.h"
 #include "syslog.h"
 #include "wav_file.h"
 #include "xyz_utils.h"
+
+#define N_FFT 4096
+
+#pragma align 32
+float         audioInBuffer[N_FFT];
+#pragma align 32
+float         audioOutBuffer[N_FFT/2];
+#pragma align 32
+complex_float tempBuffer[N_FFT/2];
 
 XYZ_Scale XYZ_Maj = {0, 2, 4, 5, 7, 9, 11};
 XYZ_Scale XYZ_Min = {0, 2, 3, 5, 7, 8, 10};
@@ -108,41 +116,50 @@ XYZ_Key *xyz_estimate_key(char *fname) {
     wf->fname = (char *)fname;
     wf->isSrc = true;
 
-/*
     int ok;
     ok = openWave(wf);
     if (!ok) {
         syslog_printf("Failed to open %s\n", wf->fname);
     } else {
 
-        // FFT
-        // Define a buffer to hold the audio samples
-        #define BUFFER_SIZE 4096
-        #define N_FFT 4096
-
-        // int16_t audioBuffer[BUFFER_SIZE];
-        #pragma align 32
-        static float         audioBuffer[BUFFER_SIZE];
-        #pragma align 32
-        static complex_float output[BUFFER_SIZE];
-
+        void *result;
+        // void *result_fft;
+        // void *result_mag;
         size_t samplesRead;
         int twiddle_stride = 1;
+
         syslog_printf("Taking rfft with %d samples.\n", N_FFT);
-        do {
-            samplesRead = readWave(wf, audioBuffer, BUFFER_SIZE);
-            if (samplesRead > 0) {
-                // Process the 'samplesRead' samples in 'audioBuffer'
-                complex_float *result = accel_rfft_large(audioBuffer, output,
-                                                         accel_twiddles_4096,
-                                                         twiddle_stride, 1.0, N_FFT);
-                if (!result)
-                    syslog_printf("Error while taking rfft.\n");
+        // Investigating the following syntax
+
+        samplesRead = readWave(wf, audioInBuffer, N_FFT);
+        if (samplesRead > 0) {
+            // Process the 'samplesRead' samples in 'audioInBuffer'
+            result = accel_rfft_large_mag_sq(
+                audioInBuffer, audioOutBuffer, tempBuffer,
+                accel_twiddles_4096, twiddle_stride,
+                1.0, N_FFT);
+            if (!result) {
+                syslog_printf("Error while taking rfft.\n");
             }
-        } while (samplesRead > 0);
+        }
+
+        /*
+        samplesRead = readWave(wf, audioInBuffer, N_FFT);
+        if (samplesRead > 0) {
+            result_fft = rfft4096(audioInBuffer, tempBuffer);
+            if (!result_fft) {
+                syslog_printf("Error while taking rfft.\n");
+            }
+            result_mag = rfft_mag(tempBuffer, audioOutBuffer, N_FFT);
+            if (!result_mag) {
+                syslog_printf("Error while taking mag.\n");
+            } else {
+                syslog_printf("Nice one bro!");
+            }
+        }
+        */
         closeWave(wf);
      }
-*/
     free(wf);
     if (!(key->KEY_UNKNOWN)) {
             xyz_update_key_string(key);

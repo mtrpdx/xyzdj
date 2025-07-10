@@ -652,12 +652,12 @@ int browseProcessKeypress(void) {
 
     int c = browseReadKey();
 
-    if (B.info_screen_active) {
-        B.info_screen_active = 0;
-        browseFreeRows();
-        scanDir(B.dirname);
-        return 1;
-    }
+    // if (B.info_screen_active) {
+    //     B.info_screen_active = 0;
+    //     browseFreeRows();
+    //     scanDir(B.dirname);
+    //     return 1;
+    // }
 
     switch(c) {
     case ENTER:         /* Enter */

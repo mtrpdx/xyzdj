@@ -250,7 +250,7 @@ static FS_DEVMAN_DIRENT *dev_fatfs_readdir(void *dir, void *pdata)
 
     result = f_readdir(ddir->dir, fileInfo);
     if ((result == FR_OK) && fileInfo->fname[0]) {
-        syslog_printf("dev_fatfs_readdir: fname='%s', altname='%s'\n", fileInfo->fname, fileInfo->altname);
+        // syslog_printf("dev_fatfs_readdir: fname='%s', altname='%s'\n", fileInfo->fname, fileInfo->altname);
         dirent = &ddir->dirent;
         dirent->fsize = fileInfo->fsize;
         dirent->ftime = fileInfo->ftime;
