@@ -1,20 +1,23 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <math.h>
+#include <complex.h>
 
-#include "adi_fft_wrapper.h"
+// #include "adi_fft_wrapper.h"
 #include "syslog.h"
 #include "wav_file.h"
+#include "fft.h"
 #include "xyz_utils.h"
 
 #define N_FFT 4096
 
 #pragma align 32
-float         audioInBuffer[N_FFT];
+cplx          audioInBuffer[N_FFT];
 #pragma align 32
-float         audioOutBuffer[N_FFT/2];
-#pragma align 32
-complex_float tempBuffer[N_FFT/2];
+float         audioOutBuffer[N_FFT];
+// #pragma align 32
+// complex_float tempBuffer[N_FFT/2];
 
 XYZ_Scale XYZ_Maj = {0, 2, 4, 5, 7, 9, 11};
 XYZ_Scale XYZ_Min = {0, 2, 3, 5, 7, 8, 10};
@@ -134,12 +137,15 @@ XYZ_Key *xyz_estimate_key(char *fname) {
         samplesRead = readWave(wf, audioInBuffer, N_FFT);
         if (samplesRead > 0) {
             // Process the 'samplesRead' samples in 'audioInBuffer'
-            result = accel_rfft_large_mag_sq(
-                audioInBuffer, audioOutBuffer, tempBuffer,
-                accel_twiddles_4096, twiddle_stride,
-                1.0, N_FFT);
+            // result = accel_rfft_large_mag_sq(
+            //     audioInBuffer, audioOutBuffer, tempBuffer,
+            //     accel_twiddles_4096, twiddle_stride,
+            //     1.0, N_FFT);
+            // if (!result) {
+            //     syslog_printf("Error while taking rfft.\n");
+            result = fft_mag(audioInBuffer, audioOutBuffer, N_FFT);
             if (!result) {
-                syslog_printf("Error while taking rfft.\n");
+                syslog_printf("Error while taking fft.\n");
             }
         }
 
@@ -158,6 +164,7 @@ XYZ_Key *xyz_estimate_key(char *fname) {
             }
         }
         */
+        syslog_printf("fft_mag of first sample: %.6f", audioOutBuffer[0]);
         closeWave(wf);
      }
     free(wf);
