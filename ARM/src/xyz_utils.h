@@ -62,6 +62,7 @@ typedef struct {
     XYZ_ACC accidental;
     int octave;
     int cents;
+    char note_name[8];
 } XYZ_Note;
 
 typedef struct {
@@ -100,6 +101,10 @@ typedef struct {
     int whole;
     int decimal;
 } XYZ_BPM;
+
+float XYZ_hz_to_midi(float freq);
+
+void XYZ_midi_to_note(float midi_note, char *buffer, size_t buffer_size);
 
 void XYZ_key_to_degrees(XYZ_Key key);
 

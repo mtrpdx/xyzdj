@@ -22,6 +22,33 @@ float         audioOutBuffer[N_FFT];
 XYZ_Scale XYZ_Maj = {0, 2, 4, 5, 7, 9, 11};
 XYZ_Scale XYZ_Min = {0, 2, 3, 5, 7, 8, 10};
 
+float XYZ_hz_to_midi(float freq) {
+    float midi;
+    midi = 12 * (log2(freq) - log2(440.0)) + 69;
+    return midi;
+}
+
+void XYZ_midi_to_note(float midi_note, char *buffer, size_t buffer_size) {
+    // XYZ_Note note;
+    // A lookup table for the 12 pitch classes. Stored in read-only memory.
+    const char* note_names[12] = { "C", "C#", "D", "D#", "E", "F",
+                                   "F#", "G", "G#", "A", "A#", "B" };
+    int midi = round(midi_note);
+    // Handle out-of-range MIDI numbers
+    if (midi < 0 || midi > 127) {
+        snprintf(buffer, buffer_size, "Invalid");
+        return;
+    }
+
+    // 1. Find the note name using the modulo operator
+    const char* note_name = note_names[midi % 12];
+    // 2. Calculate the octave. MIDI note 60 is C4, so (60/12)-1 = 4.
+    int octave = (midi / 12) - 1;
+
+    // 3. Safely format the final string into the user-provided buffer
+    snprintf(buffer, buffer_size, "%s%d", note_name, octave);
+}
+
 XYZ_TrackLength *xyz_get_length(char *fname) {
    /* 1. Open the WAV file in binary read mode (fopen(filename, "rb")).
    2. Read the header. The WAV header is typically 44 bytes. You would read this into a custom struct.
@@ -134,8 +161,21 @@ XYZ_Key *xyz_estimate_key(char *fname) {
         syslog_printf("Taking rfft with %d samples.\n", N_FFT);
         // Investigating the following syntax
 
-        samplesRead = readWave(wf, audioInBuffer, N_FFT);
+        // Zero out the buffers before use
+        memset(audioInBuffer, 0, sizeof(audioInBuffer));
+        memset(audioOutBuffer, 0, sizeof(audioOutBuffer));
+
+        // Create a temporary buffer for 16-bit integer samples
+        int16_t tempAudioBuffer[N_FFT];
+        memset(tempAudioBuffer, 0, sizeof(tempAudioBuffer));
+
+        samplesRead = readWave(wf, tempAudioBuffer, N_FFT);
         if (samplesRead > 0) {
+            // Convert 16-bit integer samples to complex double and normalize
+            for (size_t i = 0; i < samplesRead; i++) {
+                audioInBuffer[i] = (double)tempAudioBuffer[i] / 32768.0 + 0.0 * I;
+            }
+
             // Process the 'samplesRead' samples in 'audioInBuffer'
             // result = accel_rfft_large_mag_sq(
             //     audioInBuffer, audioOutBuffer, tempBuffer,
@@ -164,7 +204,35 @@ XYZ_Key *xyz_estimate_key(char *fname) {
             }
         }
         */
-        syslog_printf("fft_mag of first sample: %.6f", audioOutBuffer[0]);
+        // syslog_printf("fft_mag of first sample: %.6f", audioOutBuffer[0]);
+
+        float hps_result[N_FFT / 4];
+        for (int i = 0; i < N_FFT / 4; i++) {
+            hps_result[i] = audioOutBuffer[i] *      // Original
+                            audioOutBuffer[i * 2] *  // Downsampled by 2
+                            audioOutBuffer[i * 3] *  // Downsampled by 3
+                            audioOutBuffer[i * 4];   // Downsampled by 4
+        }
+        int max_index;
+        float freq;
+
+        max_index = 0;
+        for (int i = 1; i < N_FFT / 4; i++) {
+            if (hps_result[i] > hps_result[max_index]) {
+                max_index = i;
+            }
+        }
+        freq = max_index * wf->sampleRate / N_FFT;
+        syslog_printf("Estimated fundamental freq: %f", freq);
+
+        float midi;
+
+        char *keyBuffer[8];
+
+        midi = XYZ_hz_to_midi(freq);
+        XYZ_midi_to_note(midi, keyBuffer, sizeof(keyBuffer));
+        syslog_printf("Estimated key: %s", keyBuffer);
+
         closeWave(wf);
      }
     free(wf);

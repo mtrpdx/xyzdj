@@ -6,7 +6,6 @@
 #include <complex.h>
 
 typedef double complex cplx;
-const double PI = atan2(1, 1) * 4;
 
 void _fft(cplx buf[], cplx out[], int n, int step);
 void _mag(cplx buf[], float out[], int n);
