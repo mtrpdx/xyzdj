@@ -6,7 +6,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include <adi_fft_wrapper.h>
+#include "adi_fft_wrapper.h"
 
 // Inspiration for structures comes from librosa
 // https://librosa.org/

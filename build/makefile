@@ -53,6 +53,7 @@ ARM_SRC_DIRS += \
 	ARM \
 	ARM/src \
 	ARM/src/adi-drivers/rsi \
+	ARM/src/adi-drivers/fft \
 	ARM/src/simple-drivers \
 	ARM/src/simple-services/adau1761 \
 	ARM/src/simple-services/syslog \
@@ -70,7 +71,6 @@ ARM_SRC_DIRS += \
 	ARM/src/simple-services/vban-stream \
 	ARM/src/simple-services/wav-file \
 	ARM/src/simple-services/telnet \
-	ARM/src/adi-drivers/fft \
 	ARM/src/oss-services/lwip/core \
 	ARM/src/oss-services/lwip/core/ipv4 \
 	ARM/src/oss-services/lwip/netif \
@@ -106,7 +106,13 @@ ARM_INCLUDE_DIRS += \
 	-I"../ARM/src/adi-drivers/ethernet/include" \
 	-I"../ARM/src/oss-services/lwip" \
 	-I"../ARM/src/oss-services/lwip/include" \
-	-I"../ARM/src/oss-services/FreeRTOS-ARM/include"
+	-I"../ARM/src/oss-services/FreeRTOS-ARM/include" \
+	-I"../ARM/src/adi-drivers/fft" \
+	-I"/c/analog/cces/3.0.2/ARM/arm-none-eabi/include" \
+	-I"/c/analog/cces/3.0.2/ARM/arm-none-eabi/include/adi" \
+	-I"/c/analog/cces/3.0.2/ARM/arm-none-eabi/include/adi/cortex-a5" \
+	-I"/c/analog/cces/3.0.2/ARM/arm-none-eabi/lib/gcc/arm-none-eabi/10.2.0/include" \
+	-I"/c/analog/cces/3.0.2/ARM/arm-none-eabi/lib/gcc/arm-none-eabi/10.2.0/include-fixed"
 
 # Add src directories to includes
 ARM_INCLUDE_DIRS += $(addprefix -I$(SRC_PREFIX)/, $(ARM_SRC_DIRS))
@@ -189,7 +195,10 @@ SHARC0_DST_DIRS = $(addprefix $(SHARC0_DST)/,$(SHARC0_SRC_DIRS))
 # Include directories (SRC dirs are automatically added)
 SHARC0_INCLUDE_DIRS += \
 	-I"../ALL/include" \
-	-I"../SHARC0/include"
+	-I"../SHARC0/include" \
+	-I"../SHARC0/src/adi-drivers/fft" \
+	-I"/c/analog/cces/3.0.2/SHARC/include" \
+	-I"/c/analog/cces/3.0.2/SHARC/include/cplus"
 
 # Add src directories to includes
 SHARC0_INCLUDE_DIRS += $(addprefix -I$(SRC_PREFIX)/, $(SHARC0_SRC_DIRS))
@@ -260,7 +269,10 @@ SHARC1_DST_DIRS = $(addprefix $(SHARC1_DST)/,$(SHARC1_SRC_DIRS))
 # Include directories (SRC dirs are automatically added)
 SHARC1_INCLUDE_DIRS += \
 	-I"../ALL/include" \
-	-I"../SHARC1/include"
+	-I"../SHARC1/include" \
+	-I"../SHARC1/src/adi-drivers/fft" \
+	-I"/c/analog/cces/3.0.2/SHARC/include" \
+	-I"/c/analog/cces/3.0.2/SHARC/include/cplus"
 
 SHARC1_INCLUDE_DIRS += $(addprefix -I$(SRC_PREFIX)/, $(SHARC1_SRC_DIRS))
 

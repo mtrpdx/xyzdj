@@ -4,23 +4,60 @@
 #include <math.h>
 #include <complex.h>
 
-// #include "adi_fft_wrapper.h"
+#include "adi_fft_wrapper.h"
 #include "syslog.h"
 #include "wav_file.h"
-#include "fft.h"
+/* #include "fft.h" */
 #include "xyz_utils.h"
+#include "xyz_cfg.h"
 
 #define N_FFT 4096
 
 #pragma align 32
-cplx          audioInBuffer[N_FFT];
+static float audioInBuffer[N_FFT] = {};
 #pragma align 32
-float         audioOutBuffer[N_FFT];
-// #pragma align 32
-// complex_float tempBuffer[N_FFT/2];
+static float audioOutBuffer[N_FFT] = {};
+#pragma align 32
+static complex_float tempBuffer[N_FFT] = {};
 
 XYZ_Scale XYZ_Maj = {0, 2, 4, 5, 7, 9, 11};
 XYZ_Scale XYZ_Min = {0, 2, 3, 5, 7, 8, 10};
+
+void my_fft_error_handler (ADI_FFT_HANDLE     h,
+                           ADI_FFT_ERROR_KIND aek,
+                           void *             error_handle,
+                           unsigned int       error_code) {
+    // syslog_printf("fft_handle: %u\n", h);
+    // syslog_printf("fft error kind: %u\n", aek);
+    // syslog_printf("error code: %u\n", error_code);
+    // return;
+    syslog_printf("ERROR:");
+    if (error_handle)
+        syslog_printf(" %s", (char *)error_handle);
+    if (aek == ADI_FFT_ERROR_GIC) {
+        syslog_printf(" GIC error code %d\n", error_code);
+    } else if (aek == ADI_FFT_ERROR_FFT) {
+        if (error_code == ADI_FFT_HW_ERROR_DETECTED) {
+            uint32_t hwerr;
+            adi_fft_GetHWErrorStatus(h, &hwerr);
+            syslog_printf(" FFT HW error code %u\n", hwerr);
+        } else {
+            syslog_printf(" FFT error code %d\n", error_code);
+        }
+    } else if (aek == ADI_FFT_ERROR_SIZE || aek == ADI_FFT_ERROR_NUM_CHANNELS) {
+        syslog_printf("\n");
+    } else if (aek == ADI_FFT_ERROR_ALIGNMENT) {
+        syslog_printf(" buffer must be aligned to a %d-byte boundary\n", error_code);
+    } else if (aek == ADI_FFT_ERROR_ALIGNMENT_CACHE) {
+        syslog_printf(" buffer must be aligned to a %d-byte boundary for correct cache operation\n", error_code);
+    } else if (aek == ADI_FFT_ERROR_TWIDDLES) {
+        syslog_printf(" only accelerator twiddles can be used for large FFTs - use accel_twiddles_N or generate with accel_twidfft function\n");
+    } else if (aek == ADI_FFT_ERROR_FIR_BLOCK_SIZE) {
+        syslog_printf(" number of taps must be greater than and a multiple of block size\n");
+    } else {
+        syslog_printf(" Unknown error kind\n");
+    }
+}
 
 float XYZ_hz_to_midi(float freq) {
     float midi;
@@ -124,6 +161,14 @@ XYZ_TrackLength *xyz_get_length(char *fname) {
 
 XYZ_Key *xyz_estimate_key(char *fname) {
 
+    // float *audioInBuffer = NULL;
+    // audioInBuffer = XYZ_FFT_CALLOC(N_FFT, sizeof(float));
+    // float *audioOutBuffer = NULL;
+    // audioOutBuffer = XYZ_FFT_CALLOC(N_FFT, sizeof(float));
+    // complex_float *tempBuffer = NULL;
+    // tempBuffer = XYZ_FFT_CALLOC(N_FFT, sizeof(complex_float));
+
+
     XYZ_Key *key = NULL;
     WAV_FILE *wf = NULL;
 
@@ -152,7 +197,8 @@ XYZ_Key *xyz_estimate_key(char *fname) {
         syslog_printf("Failed to open %s\n", wf->fname);
     } else {
 
-        void *result;
+
+        float *result;
         // void *result_fft;
         // void *result_mag;
         size_t samplesRead;
@@ -161,33 +207,36 @@ XYZ_Key *xyz_estimate_key(char *fname) {
         syslog_printf("Taking rfft with %d samples.\n", N_FFT);
         // Investigating the following syntax
 
-        // Zero out the buffers before use
-        memset(audioInBuffer, 0, sizeof(audioInBuffer));
-        memset(audioOutBuffer, 0, sizeof(audioOutBuffer));
+        /* // Zero out the buffers before use */
+        /* memset(audioInBuffer, 0, sizeof(audioInBuffer)); */
+        /* memset(audioOutBuffer, 0, sizeof(audioOutBuffer)); */
+        /* memset(tempBuffer, 0, sizeof(tempBuffer)); */
 
         // Create a temporary buffer for 16-bit integer samples
-        int16_t tempAudioBuffer[N_FFT];
-        memset(tempAudioBuffer, 0, sizeof(tempAudioBuffer));
+        // int16_t tempAudioBuffer[N_FFT];
+        // memset(tempAudioBuffer, 0, sizeof(tempAudioBuffer));
 
-        samplesRead = readWave(wf, tempAudioBuffer, N_FFT);
+        samplesRead = readWave(wf, audioInBuffer, N_FFT);
         if (samplesRead > 0) {
             // Convert 16-bit integer samples to complex double and normalize
-            for (size_t i = 0; i < samplesRead; i++) {
-                audioInBuffer[i] = (double)tempAudioBuffer[i] / 32768.0 + 0.0 * I;
-            }
+            // for (size_t i = 0; i < samplesRead; i++) {
+            //     audioInBuffer[i] = (double)tempAudioBuffer[i] / 32768.0 + 0.0 *
+            //     I;
+            // }
 
             // Process the 'samplesRead' samples in 'audioInBuffer'
-            // result = accel_rfft_large_mag_sq(
-            //     audioInBuffer, audioOutBuffer, tempBuffer,
-            //     accel_twiddles_4096, twiddle_stride,
-            //     1.0, N_FFT);
-            // if (!result) {
-            //     syslog_printf("Error while taking rfft.\n");
-            result = fft_mag(audioInBuffer, audioOutBuffer, N_FFT);
+            /* Set error handler */
+            accel_fft_set_error_handler(my_fft_error_handler);
+            result = accel_rfft_large_mag_sq(audioInBuffer, audioOutBuffer,
+                                         tempBuffer, accel_twiddles_4096,
+                                         twiddle_stride, 1.0, N_FFT);
             if (!result) {
-                syslog_printf("Error while taking fft.\n");
+                syslog_printf("Error %u while taking rfft.\n", result);
+                // result = fft_mag(audioInBuffer, audioOutBuffer, N_FFT);
+                // if (!result) {
+                //     syslog_printf("Error while taking fft.\n");
+                // }
             }
-        }
 
         /*
         samplesRead = readWave(wf, audioInBuffer, N_FFT);
@@ -204,7 +253,8 @@ XYZ_Key *xyz_estimate_key(char *fname) {
             }
         }
         */
-        // syslog_printf("fft_mag of first sample: %.6f", audioOutBuffer[0]);
+        }
+        syslog_printf("fft_mag of first sample: %.6f", audioOutBuffer[0]);
 
         float hps_result[N_FFT / 4];
         for (int i = 0; i < N_FFT / 4; i++) {
@@ -227,14 +277,14 @@ XYZ_Key *xyz_estimate_key(char *fname) {
 
         float midi;
 
-        char *keyBuffer[8];
+        char keyBuffer[8];
 
         midi = XYZ_hz_to_midi(freq);
         XYZ_midi_to_note(midi, keyBuffer, sizeof(keyBuffer));
         syslog_printf("Estimated key: %s", keyBuffer);
 
         closeWave(wf);
-     }
+    }
     free(wf);
     if (!(key->KEY_UNKNOWN)) {
             xyz_update_key_string(key);
